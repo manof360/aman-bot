@@ -2,29 +2,33 @@
 
 النسخة الجديدة لبوت شركة أمان الحديثة لدعم ومبيعات المحاسب الشامل.
 
-## المبادئ
+## المنجز حتى V3.1
 - WhatsApp Cloud API الرسمي.
-- إجابات AI مقيدة بقاعدة المعرفة.
-- لا اختلاق للمميزات أو الأسعار أو الحلول.
-- تحويل بشري عند نقص المعلومات.
+- إجابات AI مقيدة بالمعلومات المسترجعة.
+- Intent classification.
+- SQLite دائم للجلسات والرسائل والتذاكر ومعرّفات الرسائل المعالجة.
+- منع الرد المكرر على webhook المعاد إرساله.
+- تحقق HMAC-SHA256 من توقيع Meta عبر X-Hub-Signature-256.
+- أسرار Meta مطلوبة عبر Environment Variables ولا توجد قيم افتراضية لها.
 - فصل WhatsApp وAI والمعرفة والجلسات والتذاكر.
 
 ## التشغيل
-1. انسخ .env.example إلى .env وأدخل القيم الحقيقية.
-2. npm install
-3. شغّل: node src/server.js
-4. اضبط Meta Webhook على /webhook.
+1. انسخ .env.example إلى .env.
+2. أدخل VERIFY_TOKEN وWHATSAPP_TOKEN وPHONE_NUMBER_ID وMETA_APP_SECRET.
+3. npm install
+4. npm start
+5. اضبط Meta Webhook على /webhook.
 
-## الحالة الحالية
-هذه Foundation وليست نسخة Production نهائية. الجلسات والتذاكر وdeduplication ما زالت في الذاكرة وتحتاج SQLite في المرحلة التالية. كذلك يلزم التحقق من توقيع Meta قبل الإنتاج.
+## التخزين
+الافتراضي: ./data/aman.db ويمكن تغييره عبر DATABASE_PATH.
+SQLite يعمل بوضع WAL. لا ترفع ملف قاعدة البيانات إلى Git.
 
-## الهيكل
-- src/ai: التصنيف ومزود AI والـprompts
-- src/knowledge: استرجاع المعرفة
-- src/whatsapp: إرسال الرسائل
-- src/conversations: الجلسات
-- src/tickets: التحويل البشري
-- src/config: الإعدادات
+## الأمان
+طلبات POST إلى /webhook تُرفض بـ401 إذا لم يطابق توقيع Meta قيمة META_APP_SECRET.
 
-## الخطوة التالية
-SQLite + توقيع Meta + قاعدة معرفة المحاسب الشامل المنظمة + اختبارات.
+## المتبقي قبل الإنتاج
+- قاعدة معرفة منظمة وحقيقية للمحاسب الشامل.
+- اختبارات آلية.
+- إشعار فعلي للموظف عند إنشاء Ticket.
+- دعم الصور والصوت.
+- سياسة retention وmasking للسجلات.
