@@ -1,12 +1,12 @@
 {
   "name": "aman-bot",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "بوت واتساب بزنس ذكي بعقل اصطناعي - The Ultimate Accountant",
   "type": "module",
-  "main": "server.js",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js"
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
