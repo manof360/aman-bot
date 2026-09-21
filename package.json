@@ -1,12 +1,13 @@
 {
   "name": "aman-bot",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "Aman Modern WhatsApp support bot for Al Shamel",
   "type": "module",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "test": "node --test"
   },
   "dependencies": {
     "better-sqlite3": "^12.2.0",
