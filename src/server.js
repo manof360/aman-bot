@@ -1,6 +1,8 @@
 import express from 'express';
 import { config } from './config/env.js';
 import { sendText } from './whatsapp/sender.js';
+import { verifyMetaSignature } from './whatsapp/security.js';
+import { claimMessage, cleanupProcessedMessages } from './whatsapp/dedup.js';
 import { classifyIntent } from './ai/classifier.js';
 import { searchKnowledge } from './knowledge/search.js';
 import { groundedAnswer } from './ai/provider.js';
@@ -8,8 +10,10 @@ import { addMessage, getSession, setStatus } from './conversations/sessions.js';
 import { createTicket } from './tickets/tickets.js';
 
 const app=express();
-app.use(express.json({limit:'1mb'}));
-const processed=new Map();
+app.use(express.json({
+  limit:'1mb',
+  verify:(req,res,buf)=>{ req.rawBody=Buffer.from(buf); }
+}));
 
 app.get('/webhook',(req,res)=>{
   const ok=req.query['hub.mode']==='subscribe' && req.query['hub.verify_token']===config.verifyToken;
@@ -17,12 +21,13 @@ app.get('/webhook',(req,res)=>{
 });
 
 app.post('/webhook',async(req,res)=>{
+  if (!verifyMetaSignature(req)) return res.sendStatus(401);
   res.sendStatus(200);
+
   try {
     const messages=(req.body.entry||[]).flatMap(e=>(e.changes||[]).flatMap(c=>c.value?.messages||[]));
     for (const message of messages) {
-      if (!message?.id || processed.has(message.id)) continue;
-      processed.set(message.id,Date.now());
+      if (!message?.id || !claimMessage(message.id)) continue;
       if (message.type!=='text') {
         await sendText(message.from,'حالياً أتعامل مع الرسائل النصية. دعم الصور والصوت سيضاف قريباً. اكتب المشكلة نصياً أو اطلب موظفاً.');
         continue;
@@ -53,18 +58,17 @@ async function handleText(userId,text) {
   }
 
   const context=hits.map((x,i)=>`[${i+1}] ${x.title}\n${x.answer}`).join('\n\n');
-  const answer=await groundedAnswer({question:text,context,history:session.messages});
+  const freshSession=getSession(userId);
+  const answer=await groundedAnswer({question:text,context,history:freshSession.messages.slice(0,-1)});
   const reply=answer || hits[0].answer;
   addMessage(userId,'assistant',reply);
   await sendText(userId,reply);
 }
 
-app.get('/health',(req,res)=>res.json({status:'ok',version:'3.0.0',aiProvider:config.aiProvider}));
-app.get('/',(req,res)=>res.json({name:'Aman Bot',version:'3.0.0',status:'running'}));
+app.get('/health',(req,res)=>res.json({status:'ok',version:'3.1.0',aiProvider:config.aiProvider,database:'sqlite'}));
+app.get('/',(req,res)=>res.json({name:'Aman Bot',version:'3.1.0',status:'running'}));
 
-setInterval(()=>{
-  const cutoff=Date.now()-24*60*60*1000;
-  for(const [id,at] of processed) if(at<cutoff) processed.delete(id);
-},60*60*1000).unref();
+cleanupProcessedMessages();
+setInterval(cleanupProcessedMessages,6*60*60*1000).unref();
 
-app.listen(config.port,()=>console.log(`Aman Bot V3 listening on ${config.port}`));
+app.listen(config.port,()=>console.log(`Aman Bot V3.1 listening on ${config.port}`));
