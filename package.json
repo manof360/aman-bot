@@ -1,7 +1,7 @@
 {
   "name": "aman-bot",
-  "version": "3.0.0",
-  "description": "بوت واتساب بزنس ذكي بعقل اصطناعي - The Ultimate Accountant",
+  "version": "3.1.0",
+  "description": "Aman Modern WhatsApp support bot for Al Shamel",
   "type": "module",
   "main": "src/server.js",
   "scripts": {
@@ -9,8 +9,9 @@
     "dev": "node --watch src/server.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
+    "better-sqlite3": "^12.2.0",
     "dotenv": "^16.3.1",
+    "express": "^4.18.2",
     "groq-sdk": "^0.7.0"
   }
 }
