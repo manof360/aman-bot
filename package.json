@@ -1,18 +1,1 @@
-{
-  "name": "aman-bot",
-  "version": "3.2.0",
-  "description": "Aman Modern WhatsApp support bot for Al Shamel",
-  "type": "module",
-  "main": "src/server.js",
-  "scripts": {
-    "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
-    "test": "node --test"
-  },
-  "dependencies": {
-    "better-sqlite3": "^12.2.0",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
-    "groq-sdk": "^0.7.0"
-  }
-}
+{"name":"aman-bot","version":"3.3.0","description":"Aman Modern WhatsApp support bot for Al Shamel","type":"module","main":"src/server.js","engines":{"node":">=22"},"scripts":{"start":"node src/server.js","dev":"node --watch src/server.js","test":"node --test"},"dependencies":{"@neondatabase/serverless":"^1.0.1","dotenv":"^16.3.1","express":"^4.18.2","groq-sdk":"^0.7.0"}}
