@@ -1,4 +1,5 @@
 import express from 'express';
+import { waitUntil } from '@vercel/functions';
 import {config} from './config/env.js';
 import {sendText} from './whatsapp/sender.js';
 import {verifyMetaSignature} from './whatsapp/security.js';
@@ -13,18 +14,24 @@ import {ensureDatabase} from './db/database.js';
 const app=express();
 app.use(express.json({limit:'1mb',verify:(req,res,buf)=>{req.rawBody=Buffer.from(buf);}}));
 app.get('/webhook',(req,res)=>{const ok=req.query['hub.mode']==='subscribe'&&req.query['hub.verify_token']===config.verifyToken;return ok?res.status(200).send(req.query['hub.challenge']):res.sendStatus(403);});
-app.post('/webhook',async(req,res)=>{
- if(!verifyMetaSignature(req)) return res.sendStatus(401);
- res.sendStatus(200);
+
+async function processWebhook(body){
  try{
-  const messages=(req.body.entry||[]).flatMap(e=>(e.changes||[]).flatMap(c=>c.value?.messages||[]));
+  const messages=(body.entry||[]).flatMap(e=>(e.changes||[]).flatMap(c=>c.value?.messages||[]));
   for(const message of messages){
    if(!message?.id||!(await claimMessage(message.id))) continue;
    if(message.type!=='text'){await sendText(message.from,'حالياً أتعامل مع الرسائل النصية. اكتب المشكلة نصياً أو اطلب موظفاً.');continue;}
    await handleText(message.from,message.text?.body||'');
   }
- }catch(e){console.error('Webhook processing error:',e.message);}
+ }catch(e){console.error('Webhook processing error:',e);}
+}
+
+app.post('/webhook',(req,res)=>{
+ if(!verifyMetaSignature(req)) return res.sendStatus(401);
+ waitUntil(processWebhook(req.body));
+ return res.sendStatus(200);
 });
+
 async function handleText(userId,text){
  const session=await getSession(userId);if(session.status==='HUMAN') return;
  await addMessage(userId,'user',text);const intent=classifyIntent(text);
@@ -35,7 +42,7 @@ async function handleText(userId,text){
  const fresh=await getSession(userId);const answer=await groundedAnswer({question:text,context,history:fresh.messages.slice(0,-1)});const reply=answer||hits[0].content;
  await addMessage(userId,'assistant',reply);await sendText(userId,reply);
 }
-app.get('/health',async(req,res)=>{try{await ensureDatabase();res.json({status:'ok',version:'3.3.0',aiProvider:config.aiProvider,database:'neon-postgres',knowledge:knowledgeStats()});}catch(e){res.status(503).json({status:'error',database:'unavailable'});}});
-app.get('/',(req,res)=>res.json({name:'Aman Bot',version:'3.3.0',status:'running'}));
-if(!process.env.VERCEL){app.listen(config.port,()=>console.log(`Aman Bot V3.3 listening on ${config.port}`));}
+app.get('/health',async(req,res)=>{try{await ensureDatabase();res.json({status:'ok',version:'3.3.1',aiProvider:config.aiProvider,database:'neon-postgres',knowledge:knowledgeStats()});}catch(e){console.error('Health check error:',e);res.status(503).json({status:'error',database:'unavailable'});}});
+app.get('/',(req,res)=>res.json({name:'Aman Bot',version:'3.3.1',status:'running'}));
+if(!process.env.VERCEL){app.listen(config.port,()=>console.log(`Aman Bot V3.3.1 listening on ${config.port}`));}
 export default app;
