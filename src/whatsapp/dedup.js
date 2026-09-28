@@ -1,12 +1,7 @@
-import { db } from '../db/database.js';
-
-const exists = db.prepare('SELECT 1 FROM processed_messages WHERE message_id = ?');
-const insert = db.prepare('INSERT OR IGNORE INTO processed_messages(message_id, processed_at) VALUES (?, ?)');
-const cleanup = db.prepare("DELETE FROM processed_messages WHERE processed_at < datetime('now', '-7 days')");
-
-export function claimMessage(messageId) {
-  if (exists.get(messageId)) return false;
-  insert.run(messageId, new Date().toISOString());
-  return true;
+import {sql,ensureDatabase} from '../db/database.js';
+export async function claimMessage(messageId){
+ await ensureDatabase();
+ const rows=await sql`INSERT INTO processed_messages(message_id) VALUES(${messageId}) ON CONFLICT(message_id) DO NOTHING RETURNING message_id`;
+ return rows.length===1;
 }
-export function cleanupProcessedMessages() { cleanup.run(); }
+export async function cleanupProcessedMessages(){await ensureDatabase();}

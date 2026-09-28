@@ -1,31 +1,5 @@
-import { db } from '../db/database.js';
-
-const MAX_MESSAGES = 8;
-const getSessionStmt = db.prepare('SELECT user_id, status FROM sessions WHERE user_id = ?');
-const upsertSession = db.prepare(`
-  INSERT INTO sessions(user_id,status,updated_at) VALUES(?,?,?)
-  ON CONFLICT(user_id) DO UPDATE SET status=excluded.status, updated_at=excluded.updated_at
-`);
-const insertMessage = db.prepare('INSERT INTO messages(user_id,role,content,created_at) VALUES(?,?,?,?)');
-const recentMessages = db.prepare(`
-  SELECT role, content, created_at AS at FROM messages
-  WHERE user_id = ? ORDER BY id DESC LIMIT ?
-`);
-
-export function addMessage(userId, role, content) {
-  const current = getSessionStmt.get(userId);
-  upsertSession.run(userId, current?.status || 'BOT', new Date().toISOString());
-  insertMessage.run(userId, role, content, new Date().toISOString());
-  return getSession(userId);
-}
-
-export function getSession(userId) {
-  const row = getSessionStmt.get(userId);
-  const messages = recentMessages.all(userId, MAX_MESSAGES).reverse();
-  return { status: row?.status || 'BOT', messages };
-}
-
-export function setStatus(userId,status) {
-  upsertSession.run(userId,status,new Date().toISOString());
-  return getSession(userId);
-}
+import {sql,ensureDatabase} from '../db/database.js';
+const MAX_MESSAGES=8;
+export async function getSession(userId){await ensureDatabase();const s=await sql`SELECT status FROM sessions WHERE user_id=${userId}`;const m=await sql`SELECT role,content,created_at AS at FROM messages WHERE user_id=${userId} ORDER BY id DESC LIMIT ${MAX_MESSAGES}`;return {status:s[0]?.status||'BOT',messages:m.reverse()};}
+export async function addMessage(userId,role,content){await ensureDatabase();const s=await sql`SELECT status FROM sessions WHERE user_id=${userId}`;const status=s[0]?.status||'BOT';await sql`INSERT INTO sessions(user_id,status,updated_at) VALUES(${userId},${status},NOW()) ON CONFLICT(user_id) DO UPDATE SET status=EXCLUDED.status,updated_at=NOW()`;await sql`INSERT INTO messages(user_id,role,content) VALUES(${userId},${role},${content})`;return getSession(userId);}
+export async function setStatus(userId,status){await ensureDatabase();await sql`INSERT INTO sessions(user_id,status,updated_at) VALUES(${userId},${status},NOW()) ON CONFLICT(user_id) DO UPDATE SET status=EXCLUDED.status,updated_at=NOW()`;return getSession(userId);}
