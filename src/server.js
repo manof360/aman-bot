@@ -1,48 +1,87 @@
+import crypto from 'node:crypto';
 import express from 'express';
-import { waitUntil } from '@vercel/functions';
-import {config} from './config/env.js';
-import {sendText} from './whatsapp/sender.js';
-import {verifyMetaSignature} from './whatsapp/security.js';
-import {claimMessage} from './whatsapp/dedup.js';
-import {classifyIntent} from './ai/classifier.js';
-import {searchKnowledge,knowledgeStats} from './knowledge/search.js';
-import {groundedAnswer} from './ai/provider.js';
-import {addMessage,getSession,setStatus} from './conversations/sessions.js';
-import {createTicket} from './tickets/tickets.js';
-import {ensureDatabase} from './db/database.js';
 
-const app=express();
-app.use(express.json({limit:'1mb',verify:(req,res,buf)=>{req.rawBody=Buffer.from(buf);}}));
-app.get('/webhook',(req,res)=>{const ok=req.query['hub.mode']==='subscribe'&&req.query['hub.verify_token']===config.verifyToken;return ok?res.status(200).send(req.query['hub.challenge']):res.sendStatus(403);});
+const app = express();
 
-async function processWebhook(body){
- try{
-  const messages=(body.entry||[]).flatMap(e=>(e.changes||[]).flatMap(c=>c.value?.messages||[]));
-  for(const message of messages){
-   if(!message?.id||!(await claimMessage(message.id))) continue;
-   if(message.type!=='text'){await sendText(message.from,'حالياً أتعامل مع الرسائل النصية. اكتب المشكلة نصياً أو اطلب موظفاً.');continue;}
-   await handleText(message.from,message.text?.body||'');
+app.use(express.json({
+  limit: '1mb',
+  verify: (req, _res, buf) => {
+    req.rawBody = Buffer.from(buf);
   }
- }catch(e){console.error('Webhook processing error:',e);}
+}));
+
+function required(name) {
+  const value = process.env[name];
+  if (!value) throw new Error(`Missing required environment variable: ${name}`);
+  return value;
 }
 
-app.post('/webhook',(req,res)=>{
- if(!verifyMetaSignature(req)) return res.sendStatus(401);
- waitUntil(processWebhook(req.body));
- return res.sendStatus(200);
+function verifyMetaSignature(req) {
+  const signature = req.get('x-hub-signature-256');
+  if (!signature || !req.rawBody) return false;
+
+  const expected = 'sha256=' + crypto
+    .createHmac('sha256', required('META_APP_SECRET'))
+    .update(req.rawBody)
+    .digest('hex');
+
+  const a = Buffer.from(signature);
+  const b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+app.get('/webhook', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  if (mode === 'subscribe' && token === required('VERIFY_TOKEN')) {
+    return res.status(200).send(challenge);
+  }
+
+  return res.sendStatus(403);
 });
 
-async function handleText(userId,text){
- const session=await getSession(userId);if(session.status==='HUMAN') return;
- await addMessage(userId,'user',text);const intent=classifyIntent(text);
- if(intent==='HUMAN_REQUEST'){const ticket=await createTicket({userId,reason:intent,summary:text});await setStatus(userId,'HUMAN');await sendText(userId,`تم تسجيل طلبك للدعم البشري. رقم التذكرة: ${ticket.id}`);return;}
- const hits=searchKnowledge(text,4);
- if(!hits.length||hits[0].score<3){await sendText(userId,'المعلومات المتوفرة لدي لا تكفي لإعطائك إجابة موثوقة. اكتب "موظف" لتحويل الطلب للدعم البشري.');return;}
- const context=hits.map((x,i)=>`SOURCE ${i+1}: ${x.title} [${x.source}]\n${x.content}`).join('\n\n');
- const fresh=await getSession(userId);const answer=await groundedAnswer({question:text,context,history:fresh.messages.slice(0,-1)});const reply=answer||hits[0].content;
- await addMessage(userId,'assistant',reply);await sendText(userId,reply);
+app.post('/webhook', (req, res) => {
+  if (!verifyMetaSignature(req)) return res.sendStatus(401);
+
+  const messages = (req.body?.entry || [])
+    .flatMap(entry => entry.changes || [])
+    .flatMap(change => change.value?.messages || []);
+
+  for (const message of messages) {
+    console.log(JSON.stringify({
+      event: 'whatsapp_message_received',
+      id: message.id,
+      from: message.from,
+      type: message.type
+    }));
+  }
+
+  // Acknowledge Meta immediately. Reply sending is added only after inbound delivery is proven.
+  return res.sendStatus(200);
+});
+
+app.get('/health', (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({
+    status: 'ok',
+    version: '4.0.0-webhook',
+    stage: 'inbound-webhook'
+  });
+});
+
+app.get('/', (_req, res) => {
+  res.json({
+    name: 'Aman Bot',
+    version: '4.0.0-webhook',
+    status: 'running'
+  });
+});
+
+if (!process.env.VERCEL) {
+  const port = Number(process.env.PORT || 3000);
+  app.listen(port, () => console.log(`Aman Bot V4 listening on ${port}`));
 }
-app.get('/health',async(req,res)=>{try{await ensureDatabase();res.json({status:'ok',version:'3.3.1',aiProvider:config.aiProvider,database:'neon-postgres',knowledge:knowledgeStats()});}catch(e){console.error('Health check error:',e);res.status(503).json({status:'error',database:'unavailable'});}});
-app.get('/',(req,res)=>res.json({name:'Aman Bot',version:'3.3.1',status:'running'}));
-if(!process.env.VERCEL){app.listen(config.port,()=>console.log(`Aman Bot V3.3.1 listening on ${config.port}`));}
+
 export default app;
