@@ -72,7 +72,7 @@ app.get('/connect/whatsapp', (req, res) => {
   }
 
   res.type('html').send(`<!doctype html>
-<html lang="ar" dir="rtl">
+<html lang="${english ? "en" : "ar"}" dir="${english ? "ltr" : "rtl"}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -84,10 +84,10 @@ pre{direction:ltr;text-align:left;white-space:pre-wrap;background:#f5f5f5;paddin
 </style>
 </head>
 <body>
-<h1>ربط واتساب بـ Aman Bot</h1>
-<p>استخدم تسجيل Meta المضمّن لربط حساب واتساب للأعمال ورقم الهاتف بالتطبيق.</p>
-<button id="connect">ربط واتساب</button>
-<pre id="result">جاهز.</pre>
+<h1>${english ? "Connect WhatsApp to Aman Bot" : "ربط واتساب بـ Aman Bot"}</h1>
+<p>${english ? "Connect your WhatsApp Business app using Meta Embedded Signup. Server setup is required after authorization." : "استخدم تسجيل Meta المضمّن لربط حساب واتساب للأعمال ورقم الهاتف بالتطبيق."}</p>
+<button id="connect">${english ? "Connect WhatsApp" : "ربط واتساب"}</button>
+<pre id="result">${english ? "Ready." : "جاهز."}</pre>
 <script>
 window.fbAsyncInit = function () {
   FB.init({appId: ${JSON.stringify(appId)}, cookie: true, xfbml: false, version: ${JSON.stringify(graphVersion)}});
