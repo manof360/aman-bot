@@ -94,27 +94,60 @@ window.fbAsyncInit = function () {
 (function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(d.getElementById(id))return;js=d.createElement(s);js.id=id;js.src='https://connect.facebook.net/en_US/sdk.js';fjs.parentNode.insertBefore(js,fjs);}(document,'script','facebook-jssdk'));
 
 const out = document.getElementById('result');
+const connectButton = document.getElementById('connect');
+let sdkReady = false;
+let signupEvent = null;
+function showStatus(message, details) {
+  out.textContent = message + (details ? '\\n' + JSON.stringify(details, null, 2) : '');
+}
+window.addEventListener('error', (event) => {
+  if (event.target?.id === 'facebook-jssdk') {
+    showStatus('تعذر تحميل Facebook SDK. تحقق من إضافات حظر المحتوى وإعدادات المتصفح.');
+  }
+}, true);
+const previousFbAsyncInit = window.fbAsyncInit;
+window.fbAsyncInit = function () {
+  if (typeof previousFbAsyncInit === 'function') previousFbAsyncInit();
+  sdkReady = typeof window.FB?.login === 'function';
+};
 window.addEventListener('message', (event) => {
   if (!['https://www.facebook.com','https://web.facebook.com'].includes(event.origin)) return;
   try {
     const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-    if (data?.type === 'WA_EMBEDDED_SIGNUP') {
-      const safe = {
-        event: data.event,
-        waba_id: data.data?.waba_id || null,
-        phone_number_id: data.data?.phone_number_id || null
-      };
-      out.textContent = JSON.stringify(safe, null, 2);
+    if (data?.type !== 'WA_EMBEDDED_SIGNUP') return;
+    const safe = {
+      event: data.event || 'UNKNOWN',
+      current_step: data.data?.current_step || null,
+      waba_id: data.data?.waba_id || null,
+      phone_number_id: data.data?.phone_number_id || null
+    };
+    signupEvent = safe;
+    if (safe.event === 'CANCEL') {
+      showStatus('تم إلغاء التسجيل لدى Meta في المرحلة الموضحة أدناه.', safe);
+    } else if (safe.event === 'ERROR') {
+      showStatus('أبلغت Meta عن خطأ أثناء التسجيل.', safe);
+    } else if (safe.event === 'FINISH' || safe.event === 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING') {
+      showStatus('اكتملت نافذة التسجيل؛ لا يزال إعداد الخادم مطلوبًا قبل تشغيل البوت.', safe);
+    } else {
+      showStatus('حدث تسجيل من Meta:', safe);
     }
-  } catch {}
+  } catch {
+    // Ignore unrelated or malformed messages; never display raw payloads or tokens.
+  }
 });
 
-document.getElementById('connect').onclick = () => {
+connectButton.onclick = () => {
+  if (!sdkReady || typeof window.FB?.login !== 'function') {
+    showStatus('Facebook SDK غير جاهز. أعد تحميل الصفحة بعد التأكد من عدم حظره.');
+    return;
+  }
+  signupEvent = null;
+  showStatus('جارٍ فتح نافذة Meta...');
   FB.login((response) => {
     if (response.authResponse?.code) {
-      out.textContent = 'تم التفويض بنجاح. تم استلام رمز مؤقت على الخادم/المتصفح؛ لا تشاركه في المحادثة.';
-    } else {
-      out.textContent = 'لم تكتمل عملية الربط.';
+      showStatus('أصدرت Meta رمز تفويض مؤقتًا. لم يُرسل الرمز إلى الخادم بعد، ولا يزال الربط التشغيلي غير مكتمل.', signupEvent);
+    } else if (!signupEvent || signupEvent.event !== 'CANCEL') {
+      showStatus('لم يكتمل تفويض Meta.', signupEvent);
     }
   }, {
     config_id: ${JSON.stringify(configId)},
