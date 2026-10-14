@@ -61,7 +61,8 @@ app.post('/webhook', (req, res) => {
   return res.sendStatus(200);
 });
 
-app.get('/connect/whatsapp', (_req, res) => {
+app.get('/connect/whatsapp', (req, res) => {
+  const english = req.query.lang === 'en';
   const appId = process.env.META_APP_ID;
   const configId = process.env.META_CONFIG_ID;
   const graphVersion = process.env.META_GRAPH_VERSION || 'v26.0';
@@ -95,6 +96,7 @@ window.fbAsyncInit = function () {
 
 const out = document.getElementById('result');
 const connectButton = document.getElementById('connect');
+const english = ${JSON.stringify(english)};
 let sdkReady = false;
 let signupEvent = null;
 function showStatus(message, details) {
@@ -123,13 +125,13 @@ window.addEventListener('message', (event) => {
     };
     signupEvent = safe;
     if (safe.event === 'CANCEL') {
-      showStatus('تم إلغاء التسجيل لدى Meta في المرحلة الموضحة أدناه.', safe);
+      showStatus(english ? 'Meta signup was cancelled at the step shown below.' : 'تم إلغاء التسجيل لدى Meta في المرحلة الموضحة أدناه.', safe);
     } else if (safe.event === 'ERROR') {
-      showStatus('أبلغت Meta عن خطأ أثناء التسجيل.', safe);
+      showStatus(english ? 'Meta reported a signup error.' : 'أبلغت Meta عن خطأ أثناء التسجيل.', safe);
     } else if (safe.event === 'FINISH' || safe.event === 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING') {
-      showStatus('اكتملت نافذة التسجيل؛ لا يزال إعداد الخادم مطلوبًا قبل تشغيل البوت.', safe);
+      showStatus(english ? 'Meta signup finished; server setup is still required before the bot can operate.' : 'اكتملت نافذة التسجيل؛ لا يزال إعداد الخادم مطلوبًا قبل تشغيل البوت.', safe);
     } else {
-      showStatus('حدث تسجيل من Meta:', safe);
+      showStatus(english ? 'Meta signup event:' : 'حدث تسجيل من Meta:', safe);
     }
   } catch {
     // Ignore unrelated or malformed messages; never display raw payloads or tokens.
@@ -138,16 +140,16 @@ window.addEventListener('message', (event) => {
 
 connectButton.onclick = () => {
   if (!sdkReady || typeof window.FB?.login !== 'function') {
-    showStatus('Facebook SDK غير جاهز. أعد تحميل الصفحة بعد التأكد من عدم حظره.');
+    showStatus(english ? 'Facebook SDK is not ready. Reload the page and check browser content blockers.' : 'Facebook SDK غير جاهز. أعد تحميل الصفحة بعد التأكد من عدم حظره.');
     return;
   }
   signupEvent = null;
-  showStatus('جارٍ فتح نافذة Meta...');
+  showStatus(english ? 'Opening Meta signup...' : 'جارٍ فتح نافذة Meta...');
   FB.login((response) => {
     if (response.authResponse?.code) {
-      showStatus('أصدرت Meta رمز تفويض مؤقتًا. لم يُرسل الرمز إلى الخادم بعد، ولا يزال الربط التشغيلي غير مكتمل.', signupEvent);
+      showStatus(english ? 'Meta issued a temporary authorization code. It has not been sent to the backend; operational setup is incomplete.' : 'أصدرت Meta رمز تفويض مؤقتًا. لم يُرسل الرمز إلى الخادم بعد، ولا يزال الربط التشغيلي غير مكتمل.', signupEvent);
     } else if (!signupEvent || signupEvent.event !== 'CANCEL') {
-      showStatus('لم يكتمل تفويض Meta.', signupEvent);
+      showStatus(english ? 'Meta authorization did not complete.' : 'لم يكتمل تفويض Meta.', signupEvent);
     }
   }, {
     config_id: ${JSON.stringify(configId)},
