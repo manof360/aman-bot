@@ -76,9 +76,9 @@ app.get('/connect/whatsapp', (req, res) => {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ربط واتساب - Aman Bot</title>
+<title>${english ? "Connect WhatsApp - Aman Bot" : "ربط واتساب - Aman Bot"}</title>
 <style>
-body{font-family:system-ui,sans-serif;max-width:760px;margin:60px auto;padding:24px;line-height:1.8}
+body{font-family:system-ui,sans-serif;max-width:760px;margin:42px auto;padding:24px;line-height:1.7;color:#17212e;background:#fafbfc}h1{line-height:1.3}h2{font-size:1.1rem;margin-bottom:8px}.info{background:white;border:1px solid #dfe5ec;border-radius:12px;padding:16px 20px;margin:20px 0}.info ol{padding-inline-start:22px;margin:8px 0}.note{font-size:.92rem;color:#475467}a{color:#0759b8}button{border:0;border-radius:8px;background:#0866c2;color:white}
 button{font:inherit;padding:12px 20px;cursor:pointer}
 pre{direction:ltr;text-align:left;white-space:pre-wrap;background:#f5f5f5;padding:14px;border-radius:8px}
 </style>
@@ -86,7 +86,21 @@ pre{direction:ltr;text-align:left;white-space:pre-wrap;background:#f5f5f5;paddin
 <body>
 <h1>${english ? "Connect WhatsApp to Aman Bot" : "ربط واتساب بـ Aman Bot"}</h1>
 <p>${english ? "Connect your WhatsApp Business app using Meta Embedded Signup. Server setup is required after authorization." : "استخدم تسجيل Meta المضمّن لربط حساب واتساب للأعمال ورقم الهاتف بالتطبيق."}</p>
+<section class="info" aria-label="${english ? "Connection steps" : "خطوات الربط"}">
+<h2>${english ? "How the connection works" : "كيف يتم الربط"}</h2>
+<ol>
+<li>${english ? "Sign in using Meta's official authorization window." : "سجّل الدخول عبر نافذة التفويض الرسمية من Meta."}</li>
+<li>${english ? "Select your business and authorize the requested WhatsApp business assets." : "اختر نشاطك التجاري واسمح بالوصول إلى أصول واتساب المطلوبة."}</li>
+<li>${english ? "Follow the WhatsApp Business App coexistence pairing steps if applicable." : "اتبع خطوات اقتران تطبيق واتساب للأعمال عند انطباقها."}</li>
+</ol>
+</section>
+<section class="info">
+<h2>${english ? "Why business permissions are requested" : "لماذا نطلب صلاحيات النشاط التجاري؟"}</h2>
+<p>${english ? "Aman Bot uses Meta Embedded Signup to request access to the business and WhatsApp assets selected by an authorized administrator. The business_management permission supports this onboarding flow; it is not requested for advertising or unrelated assets." : "يستخدم Aman Bot تسجيل Meta المضمّن لطلب الوصول إلى النشاط التجاري وأصول واتساب التي يحددها المسؤول المخوّل. تُستخدم صلاحية business_management لدعم هذا الربط، وليس للإعلانات أو الأصول غير المرتبطة."}</p>
+</section>
 <button id="connect">${english ? "Connect WhatsApp" : "ربط واتساب"}</button>
+<p class="note">${english ? "Meta authorization is handled by Meta. Completing signup does not automatically activate the bot; server-side setup is still required." : "تتولى Meta عملية التفويض. إكمال التسجيل لا يعني تشغيل البوت تلقائيًا؛ إذ يلزم إعداد الخادم."}</p>
+<p class="note"><a href="/privacy" target="_blank" rel="noopener noreferrer">${english ? "Privacy policy (Arabic)" : "سياسة الخصوصية"}</a> · <a href="https://www.aman-soft.com/" target="_blank" rel="noopener noreferrer">${english ? "Aman Modern website" : "موقع أمان الحديثة"}</a></p>
 <pre id="result">${english ? "Ready." : "جاهز."}</pre>
 <script>
 window.fbAsyncInit = function () {
@@ -104,7 +118,7 @@ function showStatus(message, details) {
 }
 window.addEventListener('error', (event) => {
   if (event.target?.id === 'facebook-jssdk') {
-    showStatus('تعذر تحميل Facebook SDK. تحقق من إضافات حظر المحتوى وإعدادات المتصفح.');
+    showStatus(english ? 'Facebook SDK could not load. Check browser content blockers and try again.' : 'تعذر تحميل Facebook SDK. تحقق من إضافات حظر المحتوى وإعدادات المتصفح.');
   }
 }, true);
 const previousFbAsyncInit = window.fbAsyncInit;
